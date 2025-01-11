@@ -1,0 +1,137 @@
+// Define the reusable function outside of the pipeline block
+ def getFileSystemSelection(nodeName, path) {
+    return input(
+        message: 'Select parameter value:',
+        parameters: [
+            [$class: 'FileSystemListParameterDefinition',
+                name: 'SingleFileSystemObject',
+                description: 'Select a single file system object',
+                nodeName: nodeName,
+                path: path,
+                selectedType: 'ALL',
+                formSelectType: 'SINGLE_SELECT',
+                regexIncludePattern: '',
+                regexExcludePattern: '',
+                sortReverseOrder: false
+            ] // parameters
+        ]
+    )
+}
+
+pipeline {
+    agent any
+    stages {
+        stage('Clone and Switch Branch') {
+            steps {
+                cleanWs() // Cleans the workspace
+                script {
+                    // Capture the selected branch from the parameter
+                    def branch = params.Env
+
+                    echo "Selected branch: ${branch}"
+
+                    // Clone and checkout the selected branch
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "*/${branch}"]],
+                        userRemoteConfigs: [[
+                            url: 'https://github.com/Tonik-Digital-Bank/poc_test_db_script.git', // Replace with your Git repo URL
+                            credentialsId: '68948b27-0932-42cf-a2ee-bdefbc9c85c1' // Replace with your Jenkins credentials ID
+                        ]]
+                    ])
+
+                    echo "Successfully cloned and switched to branch: ${branch}"
+                    sh "ls -latr"
+                    sh "pwd" 
+                    sh "cd .."
+                    sh "pwd"
+                    sh "ls -ltr Services/LOAN/Release1/"
+                    sh "ls -ltr Services/LOAN/"
+                }
+            }
+        }
+        stage('Git Clone') {
+            steps {
+                script {
+                    // Clone the Git repository
+                    git(
+                        branch: 'Test', // Replace with your branch name
+                        url: 'https://github.com/Tonik-Digital-Bank/poc_test_db_script.git', // Replace with your repo URL
+                        credentialsId: '68948b27-0932-42cf-a2ee-bdefbc9c85c1' // Replace with your Jenkins credentials ID
+                    )
+                    
+                    // Print the contents of the repository
+                    sh "ls -latr"
+                    sh "pwd" 
+                    sh "cd .."
+                    sh "pwd"
+                }
+            }
+        }
+        /*stage('Parameters') {
+            steps {
+                script {
+                    // First parameter: Single file system object
+                    def value = input(
+                        message: 'Select parameter value:',
+                        parameters: [
+                            [$class: 'FileSystemListParameterDefinition',
+                                name: 'SingleFileSystemObject',
+                                description: 'Select a single file system object',
+                                nodeName: 'Jenkins',  // Adjust the node name as needed
+                                path: '/var/lib/jenkins/workspace/shaik_file_display/Services/LOAN/Release1',  // Specify the directory path
+                                selectedType: 'ALL',
+                                formSelectType: 'SINGLE_SELECT',
+                                regexIncludePattern: '',
+                                regexExcludePattern: '',
+                                sortReverseOrder: false
+                            ] // parameters
+                        ]
+                    )
+    }
+}
+}*/
+        stage('Parameters') {
+            steps {
+                script {
+                    // First selection from the main directory (LOAN, CUSTOMER, etc.)
+                    def value = getFileSystemSelection('Jenkins', '/var/lib/jenkins/workspace/Dynamic_git/Services')
+                    echo "First selection: ${value}"
+
+                    // Handle specific selections dynamically
+                    def basePath = "/var/lib/jenkins/workspace/shaik_file_display/Services"
+
+                    // Path update logic based on the combination of value (LOAN, CUSTOMER) and release folder
+                    // Path update logic based on the combination of value (LOAN, CUSTOMER, CARDS, PAYMENT) and release folder
+if (value == 'LOAN' || value == 'CUSTOMER') {
+    // Ask for release selection (Release1, Release2)
+    def release = getFileSystemSelection('Jenkins', "${basePath}/${value}")
+    echo "You selected the release: ${release}"
+
+    // Update path based on the combination of value (LOAN, CUSTOMER, CARDS, PAYMENT) and release (RELEASE1, RELEASE2)
+    def finalPath
+    if (value == 'LOAN' && release == 'Release1') {
+        finalPath = "${basePath}/LOAN/Release1"
+    } else if (value == 'LOAN' && release == 'Release2') {
+        finalPath = "${basePath}/LOAN/Release2"
+    } else if (value == 'CUSTOMER' && release == 'Release1') {
+        finalPath = "${basePath}/CUSTOMER/Release1"
+    } else if (value == 'CUSTOMER' && release == 'Release2') {
+        finalPath = "${basePath}/CUSTOMER/Release2"
+    }
+
+    // Print the updated path
+    echo "Updated path: ${finalPath}"
+
+    // Use getFileSystemSelection to select a file from the updated path
+    def selectedFile = getFileSystemSelection('Jenkins', finalPath)
+    echo "You selected the file: ${selectedFile}"
+} else {
+    echo "No additional selection required for: ${value}"
+}
+
+                }
+            }
+        } 
+    }
+}
