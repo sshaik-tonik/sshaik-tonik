@@ -1,0 +1,52 @@
+version: 0.2
+
+env:
+  git-credential-helper: yes
+  secrets-manager:
+    dbautomation: "dbautomation:dbautomation"
+
+phases:
+  pre_build:
+    commands:
+      - echo "Setting up Git user configuration"
+      - git config --global user.email "bkaranam@tonikbank.com"
+      - git config --global user.name "bkaranam-tonik"
+      #- git checkout $branch
+      - echo "Fetching GitHub token from Secrets Manager"
+      #- echo "Git token (masked): ${GIT_TOKEN:0:4}******" # Outputs only the first few characters for debugging
+      -  git pull origin Integration
+      - apt-get update
+      #- sudo wget https://dev.mysql.com/get/mysql80-community-release-el7-3.noarch.rpm
+      #- sudo rpm -ivh mysql80-community-release-el7-3.noarch.rpm
+      #- sudo yum install mysql-community-client -y
+      #- mysql --version
+      - apt-get install mysql-client -y
+      - mysql --version
+  build:
+    commands:
+      - pwd
+      - ls
+      - echo $sqlfile
+      - echo "Current directory structure before moving file:"
+      - ls -l
+      - echo "Moving $sqlfile to promoted_to_test directory"
+      - mv $sqlfile promoted_to_test/
+      - echo "Directory structure after moving file:"
+      - ls -l
+      - echo "Contents of promoted_to_test directory:"
+      - ls -l promoted_to_test/
+      - git add promoted_to_test/$sqlfile
+      - echo "Committing the changes in Git"
+      - git commit -m "Moved release02.sql to promoted_to_test"
+      - echo "Configuring Git remote with OAuth token"
+      #git remote set-url origin https://oauth2:${CODEBUILD_GITHUB_TOKEN}@github.com/Tonik-Digital-Bank/poc_test_db_script.git
+      #- git remote set-url origin https://oauth2:${CODEBUILD_GITHUB_TOKEN}@github.com/your-org/your-repo.git
+      - echo "Pushing changes to the GitHub repository"
+      - git push origin Integration
+      - echo "$sqlfile"
+      - |
+          mysql -u dbautomation -h test-db-automation.cuag2zqmgxmf.ap-southeast-1.rds.amazonaws.com -p$dbautomation --database=loans < promoted_to_test/$sqlfile >tabletest.csv
+          cat tabletest.csv
+          
+          
+
